@@ -36,6 +36,7 @@ type Options struct {
 	EnableColor       bool     `json:"enable-color"       mapstructure:"enable-color"`
 	Development       bool     `json:"development"        mapstructure:"development"`
 	Name              string   `json:"name"               mapstructure:"name"`
+	TraceTag          string   `json:"trace-tag"               mapstructure:"trace-tag"`
 }
 
 // NewOptions creates an Options object with default parameters.

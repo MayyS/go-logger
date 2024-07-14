@@ -3,8 +3,15 @@ package main
 import (
 	"context"
 	"flag"
+	"time"
+
+	"sync"
 
 	"github.com/Mayys/log"
+	"github.com/Mayys/log/pkg/klog/encoder"
+	"github.com/google/uuid"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -15,6 +22,13 @@ var (
 )
 
 func main() {
+
+	var customeEncoder = "customeEncoder"
+	var trace_tag = "trace_id"
+	zap.RegisterEncoder(customeEncoder, func(ec zapcore.EncoderConfig) (zapcore.Encoder, error) {
+		return encoder.NewCustomConsoleEncoder(ec, trace_tag), nil
+	})
+
 	flag.BoolVar(&h, "h", false, "Print this help.")
 	flag.IntVar(&level, "l", 0, "Log level.")
 	flag.StringVar(&format, "f", "console", "log output format.")
@@ -29,11 +43,12 @@ func main() {
 	// logger配置
 	opts := &log.Options{
 		Level:            "debug",
-		Format:           "console",
+		Format:           customeEncoder,
 		EnableColor:      true, // if you need output to local path, with EnableColor must be false.
-		DisableCaller:    true,
+		DisableCaller:    false,
 		OutputPaths:      []string{"test.log", "stdout"},
 		ErrorOutputPaths: []string{"error.log"},
+		TraceTag:         trace_tag,
 	}
 	// 初始化全局logger
 	log.Init(opts)
@@ -62,4 +77,24 @@ func main() {
 	log.V(log.InfoLevel).Info("This is a V level message")
 	log.V(log.ErrorLevel).
 		Infow("This is a V level message with fields", "X-Request-ID", "7a7b9f24-4cae-4b2a-9464-69088b45b904")
+	multRequest()
+}
+
+func multRequest() {
+	num := 2
+	var wg sync.WaitGroup
+	wg.Add(num)
+	for i := 0; i < num; i++ {
+		u := uuid.New()
+		ctx := log.WithTraceTag(u.String()).WithContext(context.Background())
+		go func() {
+			for i := 0; i < 10; i++ {
+				log.FromContext(ctx).Infof("hahahah:%v", i)
+				time.Sleep(time.Second * 1)
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	log.Infof("enddddddddddddd")
 }

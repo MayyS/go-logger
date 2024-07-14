@@ -99,8 +99,9 @@ var disabledInfoLogger = &noopInfoLogger{}
 // level.  The level has already been converted to a Zap level, which
 // is to say that `logrLevel = -1*zapLevel`.
 type infoLogger struct {
-	level zapcore.Level
-	log   *zap.Logger
+	level    zapcore.Level
+	log      *zap.Logger
+	traceTag string
 }
 
 func (l *infoLogger) Enabled() bool { return true }
@@ -205,7 +206,7 @@ func New(opts *Options) *zapLogger {
 	}
 	encodeLevel := zapcore.CapitalLevelEncoder
 	// when output to local path, with color is forbidden
-	if opts.Format == consoleFormat && opts.EnableColor {
+	if opts.EnableColor {
 		encodeLevel = zapcore.CapitalColorLevelEncoder
 	}
 
@@ -246,8 +247,9 @@ func New(opts *Options) *zapLogger {
 	logger := &zapLogger{
 		zapLogger: l.Named(opts.Name),
 		infoLogger: infoLogger{
-			log:   l,
-			level: zap.InfoLevel,
+			log:      l,
+			level:    zap.InfoLevel,
+			traceTag: opts.TraceTag,
 		},
 	}
 	klog.InitLogger(l)
@@ -309,6 +311,9 @@ func (l *zapLogger) Write(p []byte) (n int, err error) {
 
 // WithValues creates a child logger and adds adds Zap fields to it.
 func WithValues(keysAndValues ...interface{}) Logger { return std.WithValues(keysAndValues...) }
+
+// WithValues creates a child logger and adds adds Zap fields to it.
+func WithTraceTag(tag string) Logger { return std.WithValues(std.traceTag, tag) }
 
 func (l *zapLogger) WithValues(keysAndValues ...interface{}) Logger {
 	newLogger := l.zapLogger.With(handleFields(l.zapLogger, keysAndValues)...)
@@ -451,6 +456,7 @@ func Error(msg string, fields ...Field) {
 }
 
 func (l *zapLogger) Error(msg string, fields ...Field) {
+	l.zapLogger.WithLazy()
 	l.zapLogger.Error(msg, fields...)
 }
 
